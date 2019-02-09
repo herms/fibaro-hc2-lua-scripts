@@ -9,14 +9,14 @@
 local userId = 0 -- Set User ID to send e-mail to
 local emailSubject = "" -- Set subject for e-mail report
 local deviceId = 0 -- Set which device to monitor. Remember to set it in the file header too!
-local consumptionStoreVariableName = ""
-local upperInactiveThreshold = 100 -- In watts
-local lowerActiveThreshold = 1000 -- In watts
+local consumptionValueVariable = "" -- Global variable to store energy meter value
+local upperInactiveThreshold = 100 -- In watts. Report will be sent when load goes below this threshold.
+local lowerActiveThreshold = 1000 -- In watts. The consumption variable will be set when load goes above this threshold.
 
 local deviceName = fibaro:getName(deviceId)
 local powerMeterValue = fibaro:get(deviceId, "power")
 local energyMeterValue = fibaro:get(deviceId, "energy")
-local consumptionValueOnStart, consumptionValueTimestamp = fibaro:getGlobal(consumptionStoreVariableName)
+local consumptionValueOnStart, consumptionValueTimestamp = fibaro:getGlobal(consumptionValueVariable)
 local powerMeterValueAsNumber = tonumber(powerMeterValue)
 local energyMeterValueAsNumber = tonumber(energyMeterValue)
 
@@ -33,7 +33,7 @@ function seconds_to_stopwatch(seconds)
     end
 end
 
-fibaro:debug("Load is " .. powerMeterValue .. ". " .. consumptionStoreVariableName .. " is " .. consumptionValueOnStart .. " set at " .. os.date("%Y-%m-%d %H:%M:%S", consumptionValueTimestamp))
+fibaro:debug("Load is " .. powerMeterValue .. " W. " .. consumptionValueVariable .. " is " .. consumptionValueOnStart .. " kWh set at " .. os.date("%Y-%m-%d %H:%M:%S", consumptionValueTimestamp))
 
 if consumptionValueOnStart == nil or tonumber(consumptionValueOnStart) == nil then
     consumptionValueOnStart = 0
@@ -42,11 +42,11 @@ end
 local consumptionValueOnStartAsNumber = tonumber(consumptionValueOnStart)
 
 if powerMeterValueAsNumber > lowerActiveThreshold and consumptionValueOnStartAsNumber == 0 then
-    fibaro:setGlobal(consumptionStoreVariableName, energyMeterValueAsNumber)
-    fibaro:debug("Set " .. consumptionStoreVariableName .. " to " .. energyMeterValueAsNumber .. " kWh.")
+    fibaro:setGlobal(consumptionValueVariable, energyMeterValueAsNumber)
+    fibaro:debug("Set " .. consumptionValueVariable .. " to " .. energyMeterValueAsNumber .. " kWh.")
 else
     if powerMeterValueAsNumber < upperInactiveThreshold and consumptionValueOnStartAsNumber > 0 then
-        fibaro:setGlobal(consumptionStoreVariableName, 0)
+        fibaro:setGlobal(consumptionValueVariable, 0)
         local secondsSinceHeatPumpActivated = os.time() - consumptionValueTimestamp
 
         local timeSpent = seconds_to_stopwatch(secondsSinceHeatPumpActivated)
@@ -60,4 +60,3 @@ else
         )
     end
 end
-
